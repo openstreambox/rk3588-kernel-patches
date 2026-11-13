@@ -120,6 +120,7 @@ jobs:
           tests.test_build_series_provenance
           tests.test_island_lane
           tests.test_verify_island_provenance
+          tests.test_rock5bplus_wwan_cold_start
 
       - name: upstream/ is unmodified since import
         run: |
@@ -238,6 +239,10 @@ jobs:
           git -C .work/linux am --abort 2>/dev/null || true
           git -C .work/linux checkout -f "${{ steps.pin.outputs.tag }}"
           git -C .work/linux clean -fdxq
+
+      # apply.sh compiles the Rock 5B+ DTB for 0052's property check.
+      - name: Install the device-tree compiler
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq device-tree-compiler
 
       - name: Apply the series
         env:

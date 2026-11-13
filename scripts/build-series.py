@@ -117,8 +117,9 @@ ISLAND_TAG_RE = re.compile(r"^v[0-9]{4}\.[0-9]+\.[0-9]+$")
 # 0031-0039; the EDID guard adds 0040 and the AVI colorimetry report 0041.
 # Retiring ten members out of those first 30 slots does NOT reduce it: an N/41
 # subject counts slots. The audio v4 migration takes 0042-0049, and the pmdomain
-# idle-request unwind takes 0050, and the hdmirx no-signal log level 0051.
-SERIES_TOTAL = 51
+# idle-request unwind takes 0050, the hdmirx no-signal log level 0051, and the
+# Rock 5B+ M.2 B-key cold start 0052.
+SERIES_TOTAL = 52
 ISLAND_ORDINAL_OFFSET = 30
 
 DS_STORE_RE = re.compile(r"^Binary files .*\.DS_Store .* differ$")
@@ -1282,6 +1283,78 @@ SERIES += (
             "rather than a defect in the original author's reasoning.",
             "Intended for upstream submission to linux-media; retire when the",
             "base absorbs it.",
+        ),
+    ),
+)
+
+
+SERIES += (
+    Patch(
+        filename="0052-rk3588-rock-5b-plus-wwan-cold-start.patch",
+        ordinal=52,
+        subject=(
+            "arm64: dts: rockchip: rock 5b+: cold-start the M.2 B-key card "
+            "after RESET# is released"
+        ),
+        provenance=NULL_OID,
+        author="Paul Golmann <mail@pje-web.de>",
+        date="Fri, 13 Nov 2026 12:00:00 +0000",
+        origin=CERALIVE,
+        rationale=(
+            "MOTIVATION. A Dell DW5821e (Foxconn T77W968, Qualcomm SDX20)",
+            "that runs as a normal MBIM modem (413c:81d7) in the Rock 5B+",
+            "M.2 B-key slot under the vendor bootloader and vendor kernel",
+            "enumerates as its fastboot bootloader (413c:81d6, one ff/42/03",
+            "interface) in the same slot under mainline U-Boot plus this",
+            "kernel, and never leaves it. A second card shows the same",
+            "signature in the same slot of another Rock 5B+.",
+            "",
+            "THE ORDER THAT DIFFERS. Mainline U-Boot uses this device tree and",
+            "enables every regulator-always-on/regulator-boot-on supply at",
+            "start, so vcc3v3_4g (EKEY_EN, GPIO1_D2) and vcc3v3_wwan_pwr",
+            "(FULL_CARD_POWER_OFF#, GPIO2_B1) are both up about five seconds",
+            "before Linux. U-Boot is built without GPIO hogs, so RESET#",
+            "(GPIO2_B3) is not driven: its U-Boot gpio status reads 'func',",
+            "and the other members of the FSPI M1 group (GPIO2_A6, A7, B0,",
+            "B4, B5) read 'func' with it, which matches the pin's",
+            "FSPI_CLK_M1 alternate function being left selected by an earlier",
+            "boot stage. The card therefore powers up with RESET# not held",
+            "high. The vendor bootloader's device tree has no regulator for",
+            "this slot, so there the card stays unpowered until the kernel;",
+            "Radxa's vendor kernel device tree for this board muxes RESET# to",
+            "GPIO and drives it high together with FULL_CARD_POWER_OFF#, in",
+            "one probe. Under this base the existing RESET# hog",
+            "releases reset at GPIO bank probe, but by then the card has",
+            "already chosen its bootloader, and boot-on hands the already",
+            "enabled supply over without a power cycle.",
+            "",
+            "BEHAVIOUR. Drop regulator-boot-on from vcc3v3_wwan_pwr and add",
+            "off-on-delay-us. regulator-fixed then requests the enable GPIO",
+            "low at probe, which switches the card off through",
+            "FULL_CARD_POWER_OFF# (the card's own documented power-off input,",
+            "internally pulled down) while the shared 3.3 V rail stays on.",
+            "regulator-always-on still enables it, but the core's off-on",
+            "delay counts from boot for an always-on supply, so the enable",
+            "waits until four seconds after boot. That keeps the card off",
+            "for more than the two seconds the module manual asks to keep",
+            "power applied after FULL_CARD_POWER_OFF# is asserted, and turns",
+            "it back on only after the RESET# hog has driven reset high. The",
+            "probe is asynchronous, so the wait does not delay boot.",
+            "vcc3v3_4g is untouched: GPIO1_D2 also enables the onboard Wi-Fi",
+            "supply, and cutting it is neither needed nor safe here.",
+            "",
+            "EVIDENCE AND LIMITS. Source-only so far: Radxa ROCK 5B+ v1.2",
+            "schematic sheets 10 and 23, the vendor U-Boot and kernel device",
+            "trees for this board, U-Boot v2026.04 regulator code, and this",
+            "base's regulator core and regulator-fixed. The DTB compiled from",
+            "this base carries the intended properties",
+            "(tests/test_rock5bplus_wwan_cold_start.py). No board has run it;",
+            "the card-side mechanism (RESET# read as a bootloader-entry key at",
+            "power-up) is inferred, not read from the card's firmware.",
+            "W_DISABLE1# still stays undriven until rfkill-gpio loads, as",
+            "before. Retire if mainline U-Boot stops powering the slot before",
+            "Linux or the base gains an equivalent sequence; intended for",
+            "upstream submission once a board run confirms it.",
         ),
     ),
 )

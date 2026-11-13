@@ -315,6 +315,11 @@ done
 
 python3 "${ROOT}/tests/test_hdmirx_audio_v4.py" --tree "."
 
+# 0052 drops regulator-boot-on from the Rock 5B+ B-key power switch so the card
+# cold-starts after its RESET# hog. Check the compiled DTB, not the source text:
+# the property set regulator-fixed and the regulator core read is what matters.
+python3 "${ROOT}/tests/test_rock5bplus_wwan_cold_start.py" --tree "." || fail=1
+
 (( fail == 0 )) || exit 1
 
 if [[ -n "${KEEP_DIR}" ]]; then
