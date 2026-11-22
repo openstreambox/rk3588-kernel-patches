@@ -292,3 +292,13 @@ class TestProvenanceValidation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFirstPartyReviewIntent(unittest.TestCase):
+    def test_declared_upstream_target_is_reflected_in_generated_headers(self) -> None:
+        patch = next(member for member in bs.SERIES if member.ordinal == 53)
+        header = header_of(bs.build_patch(patch, [], pin()))
+        self.assertIn("Intended for upstream review on linux-hwmon.", header)
+        self.assertNotIn("NOT upstream-bound", header)
+        local = replace(patch, upstream_target=None)
+        self.assertIn("NOT upstream-bound", header_of(bs.build_patch(local, [], pin())))

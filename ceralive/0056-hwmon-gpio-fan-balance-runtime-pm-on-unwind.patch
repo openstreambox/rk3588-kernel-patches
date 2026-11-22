@@ -1,0 +1,12 @@
+diff --git a/drivers/hwmon/gpio-fan.c b/drivers/hwmon/gpio-fan.c
+index edba031..3c8caff 100644
+--- a/drivers/hwmon/gpio-fan.c
++++ b/drivers/hwmon/gpio-fan.c
+@@ -538,5 +538,6 @@ static void gpio_fan_stop(void *data)
+ 	mutex_unlock(&fan_data->lock);
+ 
+-	pm_runtime_disable(fan_data->dev);
++	if (pm_runtime_enabled(fan_data->dev))
++		pm_runtime_disable(fan_data->dev);
+ }
+ 

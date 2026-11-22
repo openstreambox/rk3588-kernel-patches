@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Golmann <684458+pjeweb@users.noreply.github.com>
+Date: Sun, 22 Nov 2026 16:34:16 +0000
+Subject: [PATCH 57/57] dt-bindings: hwmon: gpio-fan: describe the detach policy
+
+Describe the optional policy for a fan with an independent supply and
+speed GPIOs that retain their output state after release. This lets a
+board keep the fan at its highest speed after driver detach.
+
+First-party: authored by CeraLive against v7.2, with no upstream
+counterpart in rockchip-rk3588-mainline-patches. The source of record
+is ceralive/0057-dt-bindings-hwmon-gpio-fan-detach-policy.patch
+and patches/ is generated from it by scripts/build-series.py.
+scripts/verify-payload-parity.py holds it to the same
+added/removed-line parity the upstream lane gets.
+
+Intended for upstream review on linux-hwmon and devicetree.
+Submission and DCO sign-off are separate from this integration.
+
+---
+diff --git a/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml b/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
+index 4faebbb..dc1ed00 100644
+--- a/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
++++ b/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
+@@ -39,6 +39,13 @@ properties:
+       control value that should be set to achieve them. This array
+       must have the RPM values in ascending order.
+ 
++  fan-keep-running-on-detach:
++    type: boolean
++    description: |
++      Leave the speed GPIOs at the highest speed on detach or probe unwind.
++      Use only when the fan is independently powered and the board retains
++      the GPIO output state after release.
++
+   '#cooling-cells':
+     const: 2
+ 
+@@ -47,6 +54,14 @@ required:
+   - gpios
+   - gpio-fan,speed-map
+ 
++allOf:
++  - if:
++      required:
++        - fan-keep-running-on-detach
++    then:
++      properties:
++        fan-supply: false
++
+ additionalProperties: false
+ 
+ examples:

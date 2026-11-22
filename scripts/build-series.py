@@ -119,7 +119,7 @@ ISLAND_TAG_RE = re.compile(r"^v[0-9]{4}\.[0-9]+\.[0-9]+$")
 # subject counts slots. The audio v4 migration takes 0042-0049, and the pmdomain
 # idle-request unwind takes 0050, and the hdmirx no-signal log level 0051.
 # 0052 was reserved by a retired experimental patch.
-SERIES_TOTAL = 55
+SERIES_TOTAL = 57
 ISLAND_ORDINAL_OFFSET = 30
 
 DS_STORE_RE = re.compile(r"^Binary files .*\.DS_Store .* differ$")
@@ -207,6 +207,7 @@ class Patch:
     rationale: tuple[str, ...] = ()  # first-party lane only: why this patch exists
     backport: Backport | None = None  # backports lane: merged-commit provenance
     lore: LorePosting | None = None  # backports lane: unmerged-posting provenance
+    upstream_target: str | None = None  # first-party lane: intended reviewers
 
 
 SERIES: tuple[Patch, ...] = (
@@ -1297,20 +1298,25 @@ SERIES += (
         author="Paul Golmann <684458+pjeweb@users.noreply.github.com>",
         date="Sun, 22 Nov 2026 16:34:16 +0000",
         origin=CERALIVE,
+        upstream_target="linux-hwmon",
         rationale=(
-            "A tach IRQ request can fail after PWM setup. Load the firmware shutdown duty before registering cleanup so probe unwind uses the configured duty.",
+            "A tach IRQ request can fail after PWM setup. Load the firmware shutdown",
+            "duty before registering cleanup so probe unwind uses the configured duty.",
         ),
     ),
     Patch(
         filename="0054-hwmon-gpio-fan-keep-running-on-detach.patch",
         ordinal=54,
-        subject="hwmon: gpio-fan: support keeping an independently powered fan running",
+        subject="hwmon: gpio-fan: keep independently powered fans running on detach",
         provenance=NULL_OID,
         author="Paul Golmann <684458+pjeweb@users.noreply.github.com>",
         date="Sun, 22 Nov 2026 16:34:16 +0000",
         origin=CERALIVE,
+        upstream_target="linux-hwmon",
         rationale=(
-            "Allow a firmware-described fan to keep running at its highest GPIO speed on detach and probe unwind. Release runtime PM independently of the final GPIO output.",
+            "Allow a firmware-described fan to keep running at its highest GPIO speed",
+            "on detach and probe unwind. Release the runtime PM reference separately",
+            "from the final GPIO output.",
         ),
     ),
     Patch(
@@ -1321,8 +1327,45 @@ SERIES += (
         author="Paul Golmann <684458+pjeweb@users.noreply.github.com>",
         date="Sun, 22 Nov 2026 16:34:16 +0000",
         origin=CERALIVE,
+        upstream_target="linux-pm",
         rationale=(
-            "Associate an OF cooling device with its firmware node in sysfs so userspace can correlate cooling state with data from the same physical device.",
+            "Expose device-tree identity so userspace can correlate thermal cooling",
+            "state with readings from the same physical device through hwmon or other",
+            "subsystems. The driver core emits an of_node link and OF_* uevent",
+            "variables for every OF cooling device, including CPU and devfreq cooling",
+            "devices. Document both as userspace ABI.",
+        ),
+    ),
+    Patch(
+        filename="0056-hwmon-gpio-fan-balance-runtime-pm-on-unwind.patch",
+        ordinal=56,
+        subject="hwmon: gpio-fan: balance runtime PM enable on probe unwind",
+        provenance=NULL_OID,
+        author="Paul Golmann <684458+pjeweb@users.noreply.github.com>",
+        date="Sun, 22 Nov 2026 16:34:16 +0000",
+        origin=CERALIVE,
+        upstream_target="linux-hwmon",
+        rationale=(
+            "The cleanup action is registered before probe enables runtime PM.",
+            "A failure in that interval calls pm_runtime_disable() with no matching",
+            "enable. That increments the disable depth and can leave runtime PM",
+            "disabled on a later successful bind. Only disable runtime PM when probe",
+            "has enabled it.",
+        ),
+    ),
+    Patch(
+        filename="0057-dt-bindings-hwmon-gpio-fan-detach-policy.patch",
+        ordinal=57,
+        subject="dt-bindings: hwmon: gpio-fan: describe the detach policy",
+        provenance=NULL_OID,
+        author="Paul Golmann <684458+pjeweb@users.noreply.github.com>",
+        date="Sun, 22 Nov 2026 16:34:16 +0000",
+        origin=CERALIVE,
+        upstream_target="linux-hwmon and devicetree",
+        rationale=(
+            "Describe the optional policy for a fan with an independent supply and",
+            "speed GPIOs that retain their output state after release. This lets a",
+            "board keep the fan at its highest speed after driver detach.",
         ),
     ),
 )
@@ -2206,6 +2249,11 @@ def build_patch(patch: Patch, rules: list[Rule], pin: dict[str, str]) -> str:
             "ALREADY upstream: this is a backport, not a submission. No Signed-off-by is",
             "added here, because the DCO chain belongs to the original author and to",
             "whoever lands it on a stable tree -- the lore link above has the real one.",
+        ]
+    elif patch.upstream_target:
+        header += [
+            f"Intended for upstream review on {patch.upstream_target}.",
+            "Submission and DCO sign-off are separate from this integration.",
         ]
     else:
         header += [

@@ -1,0 +1,33 @@
+diff --git a/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml b/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
+index 4faebbb..dc1ed00 100644
+--- a/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
++++ b/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
+@@ -39,6 +39,13 @@ properties:
+       control value that should be set to achieve them. This array
+       must have the RPM values in ascending order.
+ 
++  fan-keep-running-on-detach:
++    type: boolean
++    description: |
++      Leave the speed GPIOs at the highest speed on detach or probe unwind.
++      Use only when the fan is independently powered and the board retains
++      the GPIO output state after release.
++
+   '#cooling-cells':
+     const: 2
+ 
+@@ -47,6 +54,14 @@ required:
+   - gpios
+   - gpio-fan,speed-map
+ 
++allOf:
++  - if:
++      required:
++        - fan-keep-running-on-detach
++    then:
++      properties:
++        fan-supply: false
++
+ additionalProperties: false
+ 
+ examples:

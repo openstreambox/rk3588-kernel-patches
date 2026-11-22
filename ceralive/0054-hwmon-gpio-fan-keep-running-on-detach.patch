@@ -1,38 +1,5 @@
-diff --git a/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml b/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
-index 4faebbb..dc1ed00 100644
---- a/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
-+++ b/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
-@@ -39,6 +39,13 @@ properties:
-       control value that should be set to achieve them. This array
-       must have the RPM values in ascending order.
- 
-+  fan-keep-running-on-detach:
-+    type: boolean
-+    description: |
-+      Leave the speed GPIOs at the highest speed on detach or probe unwind.
-+      Use only when the fan is independently powered and the board retains
-+      the GPIO output state after release.
-+
-   '#cooling-cells':
-     const: 2
- 
-@@ -47,6 +54,14 @@ required:
-   - gpios
-   - gpio-fan,speed-map
- 
-+allOf:
-+  - if:
-+      required:
-+        - fan-keep-running-on-detach
-+    then:
-+      properties:
-+        fan-supply: false
-+
- additionalProperties: false
- 
- examples:
 diff --git a/drivers/hwmon/gpio-fan.c b/drivers/hwmon/gpio-fan.c
-index 084828e..3c8caff 100644
+index 084828e..edba031 100644
 --- a/drivers/hwmon/gpio-fan.c
 +++ b/drivers/hwmon/gpio-fan.c
 @@ -13,6 +13,7 @@
@@ -52,7 +19,7 @@ index 084828e..3c8caff 100644
  	struct gpio_desc	*alarm_gpio;
  	struct work_struct	alarm_work;
  	struct regulator	*supply;
-@@ -522,10 +525,20 @@ static void gpio_fan_stop(void *data)
+@@ -522,7 +525,16 @@ static void gpio_fan_stop(void *data)
  	struct gpio_fan_data *fan_data = data;
  
  	mutex_lock(&fan_data->lock);
@@ -69,13 +36,8 @@ index 084828e..3c8caff 100644
 +	}
  	mutex_unlock(&fan_data->lock);
  
--	pm_runtime_disable(fan_data->dev);
-+	if (pm_runtime_enabled(fan_data->dev))
-+		pm_runtime_disable(fan_data->dev);
- }
- 
- static int gpio_fan_probe(struct platform_device *pdev)
-@@ -541,6 +554,8 @@ static int gpio_fan_probe(struct platform_device *pdev)
+ 	pm_runtime_disable(fan_data->dev);
+@@ -541,6 +553,8 @@ static int gpio_fan_probe(struct platform_device *pdev)
  		return -ENOMEM;
  
  	fan_data->dev = dev;
@@ -84,7 +46,7 @@ index 084828e..3c8caff 100644
  	err = gpio_fan_get_of_data(fan_data);
  	if (err)
  		return err;
-@@ -591,6 +606,8 @@ static int gpio_fan_probe(struct platform_device *pdev)
+@@ -591,6 +605,8 @@ static int gpio_fan_probe(struct platform_device *pdev)
  			return ret;
  	}
  
