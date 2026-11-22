@@ -14,7 +14,7 @@ are preserved in the [agent contract index](docs/agents/README.md).
 | **Target kernel** | `v7.2` (`8d3ae59288f1e7d58d76558a6ee96d533bc5019f`) |
 | **Why that kernel** | Armbian rk3588 `bleedingedge` → `KERNEL_MAJOR_MINOR=7.2` — derived in [`docs/PREFLIGHT.md`](docs/PREFLIGHT.md). Armbian itself still points that branch at `tag:v7.2-rc7`; we pin the **final** release deliberately. |
 | **Boards** | Radxa Rock 5B+, Orange Pi 5+ (both `BOARDFAMILY=rockchip-rk3588`) |
-| **Status** | **32 active members across 51 slots**, gated by `scripts/apply.sh` on `v7.2`. Nine byte-verified members carry `rk3588-media-island v2026.9.5`, which closes an RGA job-lifecycle race that could corrupt memory under sustained composition load. Rock 5B+ `edge-test` qualification passed on 2026-09-19 (8 clean + 8 engine-restart cycles + a 300 s soak with encoder/decoder/RGA loaded, no kernel fault report) and the board was restored to production. |
+| **Status** | **37 active members across 57 slots**, gated by `scripts/apply.sh` on `v7.2`. Nine byte-verified members carry `rk3588-media-island v2026.9.5`, which closes an RGA job-lifecycle race that could corrupt memory under sustained composition load. Rock 5B+ `edge-test` qualification passed on 2026-09-19 (8 clean + 8 engine-restart cycles + a 300 s soak with encoder/decoder/RGA loaded, no kernel fault report) and the board was restored to production. |
 
 ## What's in the series
 
@@ -41,13 +41,13 @@ on a Rockchip power domain. Because the power-down failed the domain is still
 on, so the driver's sole de-assert — which sits past the power-on fast path — is
 never reached again, and the block is left powered but unreachable for the rest
 of the boot. It is **not** the fix for the RK3588 RGA2 SError: it was tested as
-a candidate for that crash and lost 2 of 2 eligible runs. The series now has 32
-active members across 51 slots.
+a candidate for that crash and lost 2 of 2 eligible runs.
 
 Upstream's numbering is preserved verbatim, gap included. First-party,
-backported, and island patches continue the same counter. 32 members are active
-across 51 slots: `0004` was never published, and eighteen retired ordinals stay
-burned.
+backported, and island patches continue the same counter. The fan series grew
+from 35 members across 55 slots to 37 across 57 when its GPIO changes were split
+into driver, runtime PM and bindings patches. Slot `0004` was never published,
+retired ordinals remain reserved, and `0052` belongs to an earlier experiment.
 
 | | Patch | Source | What it does |
 |---|---|---|---|

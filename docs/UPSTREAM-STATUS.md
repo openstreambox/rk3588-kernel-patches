@@ -176,7 +176,9 @@ a verified row from a skipped one.
 
 ## Current series members
 
-The active series now has 32 members across 51 slots. Ten standalone-rkvenc
+The active series has 37 members across 57 slots. Splitting the GPIO driver
+patch into driver, runtime PM and bindings patches increased the count from
+35 members across 55 slots. Ten standalone-rkvenc
 members moved byte-unchanged to `retired/` after `rk3588-media-island v2026.9.0`
 re-expressed their intent as maintained source and permanent tests. The nine
 island rows name the release components; their exact tag, commit and asset digest
@@ -218,6 +220,11 @@ are enforced in `scripts/build-series.py` and independently byte-verified by
 | `0049` Rock HDMI-IN enable and codec dependency | `ceralive/` | `first-party-no-upstream` | Upstream covers Rock family and codec dependency | 2026-09-05 | Same shared card as Orange Pi |
 | `0050` pmdomain rockchip idle-request unwind | `ceralive/` | `first-party-no-upstream` | Mainline de-asserts the NIU idle request on the power-down error paths | 2026-09-12 | **Send upstream (linux-pm).** `rockchip_pd_power()` asserted the NIU idle request, then `goto out` on a power-down failure without unwinding it; the domain stays on, so the sole de-assert past the already-in-state fast path is unreachable for the boot and the block is left alive but unreachable. Adds `err_unidle:` — de-assert, then `rockchip_pmu_restore_qos()` only if that succeeded — and routes both power-down error paths to it, preserving the original `ret`. No `Fixes:` tag: the introducing commit predates v7.2 and the `drivers/soc/rockchip` → `drivers/pmdomain/rockchip` move and cannot be identified from a single-tag tree. **NOT the fix for the RGA2 SError** — tested as a candidate on a Rock 5B+ and lost 2 of 2 eligible runs; that crash was root-caused to the media island's `rga2_soft_reset()` AXI reset. Code-only; no board qualification claimed for the corrected error path |
 | `0051` hdmirx no-signal log level | `ceralive/` | `first-party-no-upstream` | Mainline stops logging an absent source at error level | 2026-09-12 | **Send upstream (linux-media).** `hdmirx_query_dv_timings()` logged `port has no link` and `signal is not locked` at `v4l2_err`; neither is an error — both are the resting state of an input with nothing plugged in, and each is already returned as `-ENOLINK`/`-ENOLCK`. Measured on an idle Orange Pi 5 Plus: **1476 of 1623** dmesg lines were the first message and 138 more the second — 99.5% of a 13-hour boot's entire kernel log from one polling path. Both sites become `v4l2_dbg(1, debug, …)` behind the driver's existing module parameter, which the file already uses in 62 places; return values and control flow are untouched. Matters beyond tidiness because `CONFIG_PSTORE_CONSOLE` rings a small reserved DRAM buffer: a repeated error-level message is precisely what evicts the pre-fault console the feature exists to preserve. |
+| `0053` pwm-fan early shutdown duty | `ceralive/` | `first-party-no-upstream` | Mainline reads the shutdown duty before installing cleanup | 2026-11-22 | Standalone fix for linux-hwmon review. Covers probe errors after PWM setup. |
+| `0054` gpio-fan detach policy | `ceralive/` | `first-party-no-upstream` | Mainline provides equivalent firmware-selected detach behavior | 2026-11-22 | For linux-hwmon review with the separate binding patch. Preserves cooling from an independent supply on detach. |
+| `0055` thermal cooling device OF identity | `ceralive/` | `first-party-no-upstream` | Mainline exposes equivalent firmware identity in sysfs | 2026-11-22 | For linux-pm review. Documents the of_node link and OF_* uevent variables for all OF cooling devices. |
+| `0056` gpio-fan runtime PM unwind | `ceralive/` | `first-party-no-upstream` | Mainline balances runtime PM on early probe unwind | 2026-11-22 | Standalone fix for linux-hwmon review. Prevents unmatched disable-depth increments for all gpio-fan users. |
+| `0057` gpio-fan detach binding | `ceralive/` | `first-party-no-upstream` | Mainline describes the equivalent detach policy | 2026-11-22 | Separate binding for linux-hwmon and devicetree review. |
 <!-- current-series: end -->
 
 ## Retired Rock 5B+ Type-C preference

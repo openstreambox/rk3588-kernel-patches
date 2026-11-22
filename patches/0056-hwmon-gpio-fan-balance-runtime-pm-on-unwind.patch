@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Golmann <684458+pjeweb@users.noreply.github.com>
+Date: Sun, 22 Nov 2026 16:34:16 +0000
+Subject: [PATCH 56/57] hwmon: gpio-fan: balance runtime PM enable on probe unwind
+
+The cleanup action is registered before probe enables runtime PM.
+A failure in that interval calls pm_runtime_disable() with no matching
+enable. That increments the disable depth and can leave runtime PM
+disabled on a later successful bind. Only disable runtime PM when probe
+has enabled it.
+
+First-party: authored by CeraLive against v7.2, with no upstream
+counterpart in rockchip-rk3588-mainline-patches. The source of record
+is ceralive/0056-hwmon-gpio-fan-balance-runtime-pm-on-unwind.patch
+and patches/ is generated from it by scripts/build-series.py.
+scripts/verify-payload-parity.py holds it to the same
+added/removed-line parity the upstream lane gets.
+
+Intended for upstream review on linux-hwmon.
+Submission and DCO sign-off are separate from this integration.
+
+---
+diff --git a/drivers/hwmon/gpio-fan.c b/drivers/hwmon/gpio-fan.c
+index edba031..3c8caff 100644
+--- a/drivers/hwmon/gpio-fan.c
++++ b/drivers/hwmon/gpio-fan.c
+@@ -538,5 +538,6 @@ static void gpio_fan_stop(void *data)
+ 	mutex_unlock(&fan_data->lock);
+ 
+-	pm_runtime_disable(fan_data->dev);
++	if (pm_runtime_enabled(fan_data->dev))
++		pm_runtime_disable(fan_data->dev);
+ }
+ 

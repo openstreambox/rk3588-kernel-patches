@@ -1,0 +1,53 @@
+diff --git a/Documentation/ABI/testing/sysfs-class-thermal b/Documentation/ABI/testing/sysfs-class-thermal
+index 968d89e..de6cb0d 100644
+--- a/Documentation/ABI/testing/sysfs-class-thermal
++++ b/Documentation/ABI/testing/sysfs-class-thermal
+@@ -223,6 +223,27 @@ Description:
+ 
+ 		RW, Required
+ 
++What:		/sys/class/thermal/cooling_deviceX/of_node
++Date:		November 2026
++Contact:	linux-pm@vger.kernel.org
++Description:
++		Symbolic link to the device tree node associated with this
++		cooling device. This allows userspace to find other kernel
++		interfaces for the same device by comparing their of_node links.
++
++		Present for cooling devices registered with a device tree node.
++
++What:		/sys/class/thermal/cooling_deviceX/uevent
++Date:		November 2026
++Contact:	linux-pm@vger.kernel.org
++Description:
++		For cooling devices registered with a device tree node, the
++		standard OF_* variables describe that node. OF_NAME and
++		OF_FULLNAME identify it. OF_TYPE, OF_COMPATIBLE_* and
++		OF_ALIAS_* describe the information available in the tree.
++		The same variables are included in the corresponding device
++		uevents.
++
+ What:		/sys/class/thermal/cooling_deviceX/stats/reset
+ Description:
+ 		Writing any value resets the cooling device's statistics.
+diff --git a/drivers/thermal/thermal_core.c b/drivers/thermal/thermal_core.c
+index 28a20d4..53a8391 100644
+--- a/drivers/thermal/thermal_core.c
++++ b/drivers/thermal/thermal_core.c
+@@ -958,6 +958,7 @@ static void thermal_cdev_release(struct device *dev)
+ 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+ 
+ 	thermal_cooling_device_destroy_sysfs(cdev);
++	of_node_put(dev->of_node);
+ 	kfree_const(cdev->type);
+ 	ida_free(&thermal_cdev_ida, cdev->id);
+ 	kfree(cdev);
+@@ -1013,6 +1014,8 @@ int thermal_cooling_device_add(struct thermal_cooling_device *cdev, void *devdat
+ 	cdev->device.class = thermal_class;
+ 	cdev->device.release = thermal_cdev_release;
+ 	device_initialize(&cdev->device);
++	/* Expose the DT identity alongside the cooling state in sysfs. */
++	cdev->device.of_node = of_node_get(cdev->np);
+ 	cdev->devdata = devdata;
+ 
+ 	ret = dev_set_name(&cdev->device, "cooling_device%d", cdev->id);
