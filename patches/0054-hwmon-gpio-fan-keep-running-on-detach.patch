@@ -1,0 +1,115 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Golmann <684458+pjeweb@users.noreply.github.com>
+Date: Sun, 22 Nov 2026 16:34:16 +0000
+Subject: [PATCH 54/55] hwmon: gpio-fan: support keeping an independently powered fan running
+
+Allow a firmware-described fan to keep running at its highest GPIO speed on detach and probe unwind. Release runtime PM independently of the final GPIO output.
+
+First-party: authored by CeraLive against v7.2, with no upstream
+counterpart in rockchip-rk3588-mainline-patches. The source of record
+is ceralive/0054-hwmon-gpio-fan-keep-running-on-detach.patch
+and patches/ is generated from it by scripts/build-series.py.
+scripts/verify-payload-parity.py holds it to the same
+added/removed-line parity the upstream lane gets.
+
+NOT upstream-bound: this targets the CeraLive device tree only and
+is not a submission to linux-media, linux-rockchip or the fork
+parent. No Signed-off-by is added, because a DCO assertion belongs
+to whoever actually submits it.
+
+---
+diff --git a/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml b/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
+index 4faebbb..dc1ed00 100644
+--- a/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
++++ b/Documentation/devicetree/bindings/hwmon/gpio-fan.yaml
+@@ -39,6 +39,13 @@ properties:
+       control value that should be set to achieve them. This array
+       must have the RPM values in ascending order.
+ 
++  fan-keep-running-on-detach:
++    type: boolean
++    description: |
++      Leave the speed GPIOs at the highest speed on detach or probe unwind.
++      Use only when the fan is independently powered and the board retains
++      the GPIO output state after release.
++
+   '#cooling-cells':
+     const: 2
+ 
+@@ -47,6 +54,14 @@ required:
+   - gpios
+   - gpio-fan,speed-map
+ 
++allOf:
++  - if:
++      required:
++        - fan-keep-running-on-detach
++    then:
++      properties:
++        fan-supply: false
++
+ additionalProperties: false
+ 
+ examples:
+diff --git a/drivers/hwmon/gpio-fan.c b/drivers/hwmon/gpio-fan.c
+index 084828e..3c8caff 100644
+--- a/drivers/hwmon/gpio-fan.c
++++ b/drivers/hwmon/gpio-fan.c
+@@ -13,6 +13,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/irq.h>
+ #include <linux/platform_device.h>
++#include <linux/property.h>
+ #include <linux/err.h>
+ #include <linux/kstrtox.h>
+ #include <linux/mutex.h>
+@@ -43,6 +44,8 @@ struct gpio_fan_data {
+ 	int			speed_index;
+ 	int			resume_speed;
+ 	bool			pwm_enable;
++	bool			keep_running_on_detach;
++	bool			runtime_ready;
+ 	struct gpio_desc	*alarm_gpio;
+ 	struct work_struct	alarm_work;
+ 	struct regulator	*supply;
+@@ -522,10 +525,20 @@ static void gpio_fan_stop(void *data)
+ 	struct gpio_fan_data *fan_data = data;
+ 
+ 	mutex_lock(&fan_data->lock);
+-	set_fan_speed(data, 0);
++	if (fan_data->keep_running_on_detach) {
++		int full = fan_data->num_speed - 1;
++
++		/* Leave an independently powered fan at full speed. */
++		__set_fan_ctrl(fan_data, fan_data->speed[full].ctrl_val);
++		if (fan_data->runtime_ready && fan_data->speed_index > 0)
++			pm_runtime_put_sync(fan_data->dev);
++	} else {
++		set_fan_speed(data, 0);
++	}
+ 	mutex_unlock(&fan_data->lock);
+ 
+-	pm_runtime_disable(fan_data->dev);
++	if (pm_runtime_enabled(fan_data->dev))
++		pm_runtime_disable(fan_data->dev);
+ }
+ 
+ static int gpio_fan_probe(struct platform_device *pdev)
+@@ -541,6 +554,8 @@ static int gpio_fan_probe(struct platform_device *pdev)
+ 		return -ENOMEM;
+ 
+ 	fan_data->dev = dev;
++	fan_data->keep_running_on_detach =
++		device_property_read_bool(dev, "fan-keep-running-on-detach");
+ 	err = gpio_fan_get_of_data(fan_data);
+ 	if (err)
+ 		return err;
+@@ -591,6 +606,8 @@ static int gpio_fan_probe(struct platform_device *pdev)
+ 			return ret;
+ 	}
+ 
++	fan_data->runtime_ready = true;
++
+ 	/* Optional cooling device register for Device tree platforms */
+ 	fan_data->cdev = devm_thermal_of_child_cooling_device_register(dev, np,
+ 								       "gpio-fan",

@@ -1,0 +1,21 @@
+diff --git a/drivers/thermal/thermal_core.c b/drivers/thermal/thermal_core.c
+index 28a20d4..53a8391 100644
+--- a/drivers/thermal/thermal_core.c
++++ b/drivers/thermal/thermal_core.c
+@@ -958,6 +958,7 @@ static void thermal_cdev_release(struct device *dev)
+ 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+ 
+ 	thermal_cooling_device_destroy_sysfs(cdev);
++	of_node_put(dev->of_node);
+ 	kfree_const(cdev->type);
+ 	ida_free(&thermal_cdev_ida, cdev->id);
+ 	kfree(cdev);
+@@ -1013,6 +1014,8 @@ int thermal_cooling_device_add(struct thermal_cooling_device *cdev, void *devdat
+ 	cdev->device.class = thermal_class;
+ 	cdev->device.release = thermal_cdev_release;
+ 	device_initialize(&cdev->device);
++	/* Expose the DT identity alongside the cooling state in sysfs. */
++	cdev->device.of_node = of_node_get(cdev->np);
+ 	cdev->devdata = devdata;
+ 
+ 	ret = dev_set_name(&cdev->device, "cooling_device%d", cdev->id);

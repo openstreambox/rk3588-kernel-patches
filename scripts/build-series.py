@@ -118,7 +118,8 @@ ISLAND_TAG_RE = re.compile(r"^v[0-9]{4}\.[0-9]+\.[0-9]+$")
 # Retiring ten members out of those first 30 slots does NOT reduce it: an N/41
 # subject counts slots. The audio v4 migration takes 0042-0049, and the pmdomain
 # idle-request unwind takes 0050, and the hdmirx no-signal log level 0051.
-SERIES_TOTAL = 51
+# 0052 was reserved by a retired experimental patch.
+SERIES_TOTAL = 55
 ISLAND_ORDINAL_OFFSET = 30
 
 DS_STORE_RE = re.compile(r"^Binary files .*\.DS_Store .* differ$")
@@ -1282,6 +1283,46 @@ SERIES += (
             "rather than a defect in the original author's reasoning.",
             "Intended for upstream submission to linux-media; retire when the",
             "base absorbs it.",
+        ),
+    ),
+)
+
+
+SERIES += (
+    Patch(
+        filename="0053-hwmon-pwm-fan-read-shutdown-duty-early.patch",
+        ordinal=53,
+        subject="hwmon: pwm-fan: read shutdown duty before registering cleanup",
+        provenance=NULL_OID,
+        author="Paul Golmann <684458+pjeweb@users.noreply.github.com>",
+        date="Sun, 22 Nov 2026 16:34:16 +0000",
+        origin=CERALIVE,
+        rationale=(
+            "A tach IRQ request can fail after PWM setup. Load the firmware shutdown duty before registering cleanup so probe unwind uses the configured duty.",
+        ),
+    ),
+    Patch(
+        filename="0054-hwmon-gpio-fan-keep-running-on-detach.patch",
+        ordinal=54,
+        subject="hwmon: gpio-fan: support keeping an independently powered fan running",
+        provenance=NULL_OID,
+        author="Paul Golmann <684458+pjeweb@users.noreply.github.com>",
+        date="Sun, 22 Nov 2026 16:34:16 +0000",
+        origin=CERALIVE,
+        rationale=(
+            "Allow a firmware-described fan to keep running at its highest GPIO speed on detach and probe unwind. Release runtime PM independently of the final GPIO output.",
+        ),
+    ),
+    Patch(
+        filename="0055-thermal-cooling-device-of-node.patch",
+        ordinal=55,
+        subject="thermal: expose the device-tree node of OF cooling devices",
+        provenance=NULL_OID,
+        author="Paul Golmann <684458+pjeweb@users.noreply.github.com>",
+        date="Sun, 22 Nov 2026 16:34:16 +0000",
+        origin=CERALIVE,
+        rationale=(
+            "Associate an OF cooling device with its firmware node in sysfs so userspace can correlate cooling state with data from the same physical device.",
         ),
     ),
 )

@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Golmann <684458+pjeweb@users.noreply.github.com>
+Date: Sun, 22 Nov 2026 16:34:16 +0000
+Subject: [PATCH 55/55] thermal: expose the device-tree node of OF cooling devices
+
+Associate an OF cooling device with its firmware node in sysfs so userspace can correlate cooling state with data from the same physical device.
+
+First-party: authored by CeraLive against v7.2, with no upstream
+counterpart in rockchip-rk3588-mainline-patches. The source of record
+is ceralive/0055-thermal-cooling-device-of-node.patch
+and patches/ is generated from it by scripts/build-series.py.
+scripts/verify-payload-parity.py holds it to the same
+added/removed-line parity the upstream lane gets.
+
+NOT upstream-bound: this targets the CeraLive device tree only and
+is not a submission to linux-media, linux-rockchip or the fork
+parent. No Signed-off-by is added, because a DCO assertion belongs
+to whoever actually submits it.
+
+---
+diff --git a/drivers/thermal/thermal_core.c b/drivers/thermal/thermal_core.c
+index 28a20d4..53a8391 100644
+--- a/drivers/thermal/thermal_core.c
++++ b/drivers/thermal/thermal_core.c
+@@ -958,6 +958,7 @@ static void thermal_cdev_release(struct device *dev)
+ 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+ 
+ 	thermal_cooling_device_destroy_sysfs(cdev);
++	of_node_put(dev->of_node);
+ 	kfree_const(cdev->type);
+ 	ida_free(&thermal_cdev_ida, cdev->id);
+ 	kfree(cdev);
+@@ -1013,6 +1014,8 @@ int thermal_cooling_device_add(struct thermal_cooling_device *cdev, void *devdat
+ 	cdev->device.class = thermal_class;
+ 	cdev->device.release = thermal_cdev_release;
+ 	device_initialize(&cdev->device);
++	/* Expose the DT identity alongside the cooling state in sysfs. */
++	cdev->device.of_node = of_node_get(cdev->np);
+ 	cdev->devdata = devdata;
+ 
+ 	ret = dev_set_name(&cdev->device, "cooling_device%d", cdev->id);
